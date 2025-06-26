@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import { ClientThemeProvider } from "@/components/client-theme-provider"
+import { AuthProvider } from "@/hooks/use-auth"
 
 export const metadata: Metadata = {
   title: "CodeMasters - Competitive Coding Platform",
@@ -19,13 +20,13 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased">
         {/* Initial shell that will be visible during SSR */}
         <div id="app-shell" suppressHydrationWarning>
-          <ClientThemeProvider>{children}</ClientThemeProvider>
+          <ClientThemeProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ClientThemeProvider>
         </div>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'
