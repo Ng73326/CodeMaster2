@@ -5,11 +5,11 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
-import { CodeEditor } from "@/components/code-editor"
+import { CodeExecutionPanel } from "@/components/code-execution-panel"
 import { getCurrentUser } from "@/lib/auth"
 import { ArrowLeft, Bookmark, Share2, ThumbsUp, MessageSquare } from "lucide-react"
 
@@ -28,10 +28,6 @@ export default function PracticeProblemPage() {
         // Fetch user data
         const userData = await getCurrentUser()
         setUser(userData)
-
-        // In a real app, this would fetch the problem from your API
-        // const response = await fetch(`/api/problems/${problemId}`);
-        // const problemData = await response.json();
 
         // Mock problem data for demonstration
         const mockProblem = {
@@ -73,6 +69,106 @@ export default function PracticeProblemPage() {
           discussions: 342,
           solutions: 156,
           likes: 1250,
+          testCases: [
+            {
+              input: "2 7 11 15\n9",
+              expectedOutput: "0 1",
+              description: "Basic test case"
+            },
+            {
+              input: "3 2 4\n6",
+              expectedOutput: "1 2",
+              description: "Different indices"
+            },
+            {
+              input: "3 3\n6",
+              expectedOutput: "0 1",
+              description: "Same values"
+            }
+          ],
+          starterCode: {
+            javascript: `/**
+ * @param {number[]} nums
+ * @param {number} target
+ * @return {number[]}
+ */
+function twoSum(nums, target) {
+    // Read input
+    const lines = input.trim().split('\\n');
+    const numsArray = lines[0].split(' ').map(Number);
+    const targetValue = parseInt(lines[1]);
+    
+    // Your solution here
+    
+    // Return result as space-separated string
+    return result.join(' ');
+}
+
+// Test with sample input
+const input = \`2 7 11 15
+9\`;
+console.log(twoSum(input));`,
+            python: `def two_sum():
+    # Read input
+    lines = input().strip().split('\\n')
+    nums = list(map(int, lines[0].split()))
+    target = int(lines[1])
+    
+    # Your solution here
+    
+    # Print result as space-separated values
+    print(' '.join(map(str, result)))
+
+two_sum()`,
+            java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        
+        // Read input
+        String[] numsStr = scanner.nextLine().split(" ");
+        int[] nums = new int[numsStr.length];
+        for (int i = 0; i < numsStr.length; i++) {
+            nums[i] = Integer.parseInt(numsStr[i]);
+        }
+        int target = scanner.nextInt();
+        
+        // Your solution here
+        
+        // Print result
+        System.out.println(result[0] + " " + result[1]);
+    }
+}`,
+            cpp: `#include <iostream>
+#include <vector>
+#include <sstream>
+using namespace std;
+
+int main() {
+    string line;
+    getline(cin, line);
+    
+    // Parse nums array
+    vector<int> nums;
+    stringstream ss(line);
+    int num;
+    while (ss >> num) {
+        nums.push_back(num);
+    }
+    
+    // Read target
+    int target;
+    cin >> target;
+    
+    // Your solution here
+    
+    // Print result
+    cout << result[0] << " " << result[1] << endl;
+    
+    return 0;
+}`
+          }
         }
         setProblem(mockProblem)
       } catch (error) {
@@ -217,58 +313,14 @@ export default function PracticeProblemPage() {
               </Card>
             </div>
 
-            {/* Code editor and tabs */}
+            {/* Code execution panel */}
             <div className="lg:col-span-2">
-              <Card>
-                <CardHeader className="p-4 border-b">
-                  <Tabs defaultValue="code">
-                    <TabsList className="w-full justify-start h-10">
-                      <TabsTrigger value="code" className="data-[state=active]:bg-background">
-                        Code
-                      </TabsTrigger>
-                      <TabsTrigger value="solutions" className="data-[state=active]:bg-background">
-                        Solutions
-                      </TabsTrigger>
-                      <TabsTrigger value="discussions" className="data-[state=active]:bg-background">
-                        Discussions
-                      </TabsTrigger>
-                      <TabsTrigger value="submissions" className="data-[state=active]:bg-background">
-                        Submissions
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="h-[600px]">
-                    <CodeEditor
-                      defaultLanguage="javascript"
-                      defaultValue={`/**
- * @param {number[]} nums
- * @param {number} target
- * @return {number[]}
- */
-function twoSum(nums, target) {
-  // Write your solution here
-  
-}`}
-                    />
-                  </div>
-                  <div className="p-4 border-t flex justify-between">
-                    <div className="flex gap-2">
-                      <select className="px-3 py-1 border rounded-md text-sm">
-                        <option value="javascript">JavaScript</option>
-                        <option value="python">Python</option>
-                        <option value="cpp">C++</option>
-                        <option value="java">Java</option>
-                      </select>
-                      <Button variant="outline" size="sm">
-                        Run Code
-                      </Button>
-                    </div>
-                    <Button size="sm">Submit Solution</Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <CodeExecutionPanel
+                initialCode={problem.starterCode?.javascript || ""}
+                initialLanguage="javascript"
+                problemTitle={problem.title}
+                testCases={problem.testCases}
+              />
             </div>
           </div>
         </div>
@@ -276,4 +328,3 @@ function twoSum(nums, target) {
     </div>
   )
 }
-

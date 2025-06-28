@@ -1,8 +1,15 @@
 "use client"
 
 import { useState, useEffect, createContext, useContext } from 'react'
-import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/auth'
+
+interface User {
+  id: string
+  email: string
+  name: string
+  role: 'user' | 'admin'
+  image?: string
+}
 
 interface AuthContextType {
   user: User | null
@@ -21,36 +28,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
+    const loadUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
+        const currentUser = await getCurrentUser()
+        setUser(currentUser)
       } catch (error) {
-        console.error('Error getting session:', error)
+        console.error('Error loading user:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
+    loadUser()
   }, [])
 
   const signOut = async () => {
     try {
       setLoading(true)
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      // Import logoutUser dynamically to avoid circular dependencies
+      const { logoutUser } = await import('@/lib/auth')
+      await logoutUser()
+      setUser(null)
     } catch (error) {
       console.error('Error signing out:', error)
     } finally {

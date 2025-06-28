@@ -1,57 +1,104 @@
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
+import Editor from "@monaco-editor/react"
+import { useTheme } from "next-themes"
 
 interface CodeEditorProps {
   defaultLanguage?: string
   defaultValue?: string
   onChange?: (value: string) => void
+  height?: string
+  readOnly?: boolean
 }
 
-export function CodeEditor({ defaultLanguage = "javascript", defaultValue = "", onChange }: CodeEditorProps) {
+export function CodeEditor({ 
+  defaultLanguage = "javascript", 
+  defaultValue = "", 
+  onChange,
+  height = "400px",
+  readOnly = false
+}: CodeEditorProps) {
   const editorRef = useRef<any>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const { theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // This is a simplified mock implementation
-    // In a real app, you would use Monaco Editor or CodeMirror
-    if (containerRef.current) {
-      const textarea = document.createElement("textarea")
-      textarea.value = defaultValue
-      textarea.className = "w-full h-full p-4 font-mono text-sm bg-background border-0 focus:outline-none resize-none"
-      textarea.style.minHeight = "600px"
+    setMounted(true)
+  }, [])
 
-      // Add syntax highlighting class based on language
-      textarea.classList.add(`language-${defaultLanguage}`)
+  function handleEditorDidMount(editor: any, monaco: any) {
+    editorRef.current = editor
+    
+    // Configure editor options
+    editor.updateOptions({
+      fontSize: 14,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      tabSize: 2,
+      insertSpaces: true,
+      wordWrap: 'on',
+      lineNumbers: 'on',
+      glyphMargin: false,
+      folding: false,
+      lineDecorationsWidth: 10,
+      lineNumbersMinChars: 3,
+      readOnly: readOnly
+    })
 
-      // Handle changes
-      textarea.addEventListener("input", (e) => {
-        const target = e.target as HTMLTextAreaElement
-        if (onChange) {
-          onChange(target.value)
-        }
-      })
+    // Set up auto-completion and IntelliSense
+    monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true)
+    monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
+  }
 
-      // Clear container and append textarea
-      containerRef.current.innerHTML = ""
-      containerRef.current.appendChild(textarea)
-
-      // Store reference
-      editorRef.current = textarea
+  function handleEditorChange(value: string | undefined) {
+    if (onChange && value !== undefined) {
+      onChange(value)
     }
+  }
 
-    return () => {
-      // Cleanup
-      if (editorRef.current) {
-        editorRef.current = null
-      }
-    }
-  }, [defaultLanguage, defaultValue, onChange])
+  if (!mounted) {
+    return (
+      <div 
+        className="w-full border rounded-md bg-muted flex items-center justify-center"
+        style={{ height }}
+      >
+        <div className="text-muted-foreground">Loading editor...</div>
+      </div>
+    )
+  }
 
   return (
-    <div ref={containerRef} className="w-full h-full border-0">
-      {/* Editor will be mounted here */}
+    <div className="w-full border rounded-md overflow-hidden">
+      <Editor
+        height={height}
+        defaultLanguage={defaultLanguage}
+        defaultValue={defaultValue}
+        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+        onMount={handleEditorDidMount}
+        onChange={handleEditorChange}
+        options={{
+          fontSize: 14,
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          automaticLayout: true,
+          tabSize: 2,
+          insertSpaces: true,
+          wordWrap: 'on',
+          lineNumbers: 'on',
+          glyphMargin: false,
+          folding: false,
+          lineDecorationsWidth: 10,
+          lineNumbersMinChars: 3,
+          readOnly: readOnly,
+          contextmenu: false,
+          selectOnLineNumbers: true,
+          roundedSelection: false,
+          cursorStyle: 'line',
+          automaticLayout: true,
+        }}
+      />
     </div>
   )
 }
-
