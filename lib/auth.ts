@@ -118,11 +118,16 @@ export async function loginWithGoogle(): Promise<{ url?: string; error?: string 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
     })
 
     if (error) {
+      console.error('Google OAuth error:', error)
       throw error
     }
 
@@ -139,6 +144,7 @@ export async function handleOAuthCallback(): Promise<AuthUser | null> {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error || !user) {
+      console.error('OAuth callback error:', error)
       return null
     }
 
