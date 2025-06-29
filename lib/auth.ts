@@ -92,7 +92,7 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
     if (!userRecord) {
       // Create user record if it doesn't exist
       userRecord = await userOperations.insertUser({
-        name: authData.user.user_metadata?.name || 'User',
+        name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || 'User',
         email: authData.user.email!,
         userId: authData.user.id
       })
@@ -103,12 +103,69 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
       email: authData.user.email!,
       name: userRecord.name,
       role: (authData.user.user_metadata?.role as 'user' | 'admin') || 'user',
-      image: authData.user.user_metadata?.avatar_url,
+      image: authData.user.user_metadata?.avatar_url || authData.user.user_metadata?.picture,
       email_confirmed_at: authData.user.email_confirmed_at
     }
   } catch (error) {
     console.error('Login error:', error)
     throw error
+  }
+}
+
+// Google OAuth login
+export async function loginWithGoogle(): Promise<{ url?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { url: data.url }
+  } catch (error) {
+    console.error('Google login error:', error)
+    return { error: error instanceof Error ? error.message : 'Failed to login with Google' }
+  }
+}
+
+// Handle OAuth callback and create user record
+export async function handleOAuthCallback(): Promise<AuthUser | null> {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error || !user) {
+      return null
+    }
+
+    // For OAuth users, email is automatically confirmed
+    // Get or create user record in users table
+    let userRecord = await userOperations.getUserByUserId(user.id)
+    
+    if (!userRecord) {
+      // Create user record for OAuth user
+      userRecord = await userOperations.insertUser({
+        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        email: user.email!,
+        userId: user.id
+      })
+    }
+
+    return {
+      id: user.id,
+      email: user.email!,
+      name: userRecord.name,
+      role: (user.user_metadata?.role as 'user' | 'admin') || 'user',
+      image: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+      email_confirmed_at: user.email_confirmed_at
+    }
+  } catch (error) {
+    console.error('OAuth callback error:', error)
+    return null
   }
 }
 
@@ -134,8 +191,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null
     }
 
-    // Check if email is verified
-    if (!user.email_confirmed_at) {
+    // For OAuth users, email is automatically confirmed
+    // For email/password users, check if email is verified
+    if (user.app_metadata?.provider === 'email' && !user.email_confirmed_at) {
       return null
     }
 
@@ -151,7 +209,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       email: user.email!,
       name: userRecord.name,
       role: (user.user_metadata?.role as 'user' | 'admin') || 'user',
-      image: user.user_metadata?.avatar_url,
+      image: user.user_metadata?.avatar_url || user.user_metadata?.picture,
       email_confirmed_at: user.email_confirmed_at
     }
   } catch (error) {
