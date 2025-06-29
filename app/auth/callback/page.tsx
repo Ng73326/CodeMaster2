@@ -14,8 +14,8 @@ export default function AuthCallbackPage() {
         const user = await handleOAuthCallback()
         
         if (user) {
-          // Successful OAuth login, redirect to dashboard
-          router.push('/user/dashboard')
+          // Successful OAuth login, redirect to leaderboard
+          router.push('/leaderboard')
         } else {
           // Failed to get user, redirect to login with error
           router.push('/login?error=oauth_failed')

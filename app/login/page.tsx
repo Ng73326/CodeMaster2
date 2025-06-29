@@ -61,7 +61,7 @@ export default function LoginPage() {
 
     try {
       const user = await loginUser(formData)
-      router.push("/user/dashboard")
+      router.push("/leaderboard")
     } catch (err: any) {
       const errorMessage = err.message || "Invalid email or password"
       
@@ -306,7 +306,7 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
-              Don&apos;t have an account?{" "}
+              Don't have an account?{" "}
               <Link href="/signup" className="text-primary underline hover:no-underline">
                 Sign up
               </Link>

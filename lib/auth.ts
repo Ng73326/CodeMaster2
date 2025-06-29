@@ -241,6 +241,40 @@ export async function resendVerificationEmail(email: string): Promise<void> {
   }
 }
 
+// Update user profile
+export async function updateUserProfile(updates: { name?: string; image?: string }): Promise<AuthUser> {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      throw new Error('User not authenticated')
+    }
+
+    // Update auth metadata if needed
+    if (updates.name) {
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { name: updates.name }
+      })
+      
+      if (updateError) {
+        throw updateError
+      }
+    }
+
+    // Update user record in users table
+    const userRecord = await userOperations.getUserByUserId(user.id)
+    if (userRecord && updates.name) {
+      await userOperations.updateUser(userRecord.id, { name: updates.name })
+    }
+
+    // Return updated user
+    return await getCurrentUser() as AuthUser
+  } catch (error) {
+    console.error('Update profile error:', error)
+    throw error
+  }
+}
+
 // Check auth state changes
 export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
   return supabase.auth.onAuthStateChange(async (event, session) => {

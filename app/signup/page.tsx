@@ -92,7 +92,7 @@ export default function SignupPage() {
         setVerificationSent(true)
       } else {
         // Rare case where email is immediately verified
-        router.push("/user/dashboard")
+        router.push("/leaderboard")
       }
     } catch (err: any) {
       setError(err.message || "An error occurred during registration")
@@ -138,7 +138,7 @@ export default function SignupPage() {
               </div>
               <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
               <CardDescription>
-                👉 Please check your email and verify your account before logging in.
+                Please check your email and verify your account before logging in.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

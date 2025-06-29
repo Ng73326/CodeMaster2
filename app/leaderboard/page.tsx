@@ -1,14 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MainNav } from "@/components/main-nav"
 import { Badge } from "@/components/ui/badge"
 import { Trophy } from "lucide-react"
+import { ProfileSection } from "@/components/profile-section"
+import { getCurrentUser } from "@/lib/auth"
+import type { AuthUser } from "@/lib/auth"
 
 export default function LeaderboardPage() {
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
+
   // Mock user data for demonstration
   const [globalUsers] = useState([
     { id: "1", name: "Rahul Singh", problemsSolved: 245, rating: 2150, rank: 1 },
@@ -43,17 +49,27 @@ export default function LeaderboardPage() {
     { id: "1", name: "Rahul Singh", round: "Semi-Finalist", rank: 5 },
   ])
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getCurrentUser()
+        setUser(userData)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [])
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-16 items-center justify-between py-4">
           <MainNav />
-          <div className="flex gap-4">
-            <Button variant="outline" onClick={() => (window.location.href = "/login")}>
-              Login
-            </Button>
-            <Button onClick={() => (window.location.href = "/signup")}>Sign Up</Button>
-          </div>
+          <ProfileSection user={user} loading={loading} />
         </div>
       </header>
       <main className="flex-1 space-y-4 p-8 pt-6">
@@ -266,4 +282,3 @@ export default function LeaderboardPage() {
     </div>
   )
 }
-
