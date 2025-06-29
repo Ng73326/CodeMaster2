@@ -12,21 +12,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
-import { logoutUser } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
+import type { AuthUser } from "@/lib/auth"
 
 interface UserNavProps {
-  user: {
-    name: string
-    email: string
-    image?: string
-  }
+  user: AuthUser
 }
 
 export function UserNav({ user }: UserNavProps) {
   const router = useRouter()
+  const { signOut } = useAuth()
 
   const handleLogout = async () => {
-    await logoutUser()
+    await signOut()
     router.push("/login")
   }
 
@@ -58,4 +56,3 @@ export function UserNav({ user }: UserNavProps) {
     </DropdownMenu>
   )
 }
-

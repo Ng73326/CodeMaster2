@@ -10,10 +10,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Code, Loader2, User, Mail, Lock, Eye, EyeOff } from "lucide-react"
+import { Code, Loader2, User, Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react"
 import { createUserAccount } from "@/lib/auth"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { motion } from "framer-motion"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -29,6 +30,7 @@ export default function SignupPage() {
   const [passwordError, setPasswordError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [verificationSent, setVerificationSent] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -78,16 +80,69 @@ export default function SignupPage() {
     }
 
     try {
-      await createUserAccount({
-        ...formData,
-        role: "user" // All users are regular users now
+      const { needsVerification } = await createUserAccount({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: "user"
       })
-      router.push("/login?registered=true")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during registration")
+
+      if (needsVerification) {
+        setVerificationSent(true)
+      } else {
+        // Rare case where email is immediately verified
+        router.push("/user/dashboard")
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during registration")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (verificationSent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="w-full max-w-md shadow-lg border-0 bg-background/80 backdrop-blur-sm">
+            <CardHeader className="space-y-1 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
+                  <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+              <CardDescription>
+                👉 Please check your email and verify your account before logging in.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200">
+                <AlertDescription>
+                  We've sent a verification link to <strong>{formData.email}</strong>. 
+                  Click the link in your email to verify your account, then return here to log in.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Link href="/login" className="w-full">
+                <Button className="w-full">Go to Login</Button>
+              </Link>
+              <div className="text-center text-sm text-muted-foreground">
+                Didn't receive the email? Check your spam folder or{" "}
+                <Link href="/signup" className="text-primary underline hover:no-underline">
+                  try again
+                </Link>
+              </div>
+            </CardFooter>
+          </Card>
+        </motion.div>
+      </div>
+    )
   }
 
   return (

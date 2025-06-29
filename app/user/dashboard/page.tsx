@@ -10,32 +10,39 @@ import { MainNav } from "@/components/main-nav"
 import { Overview } from "@/components/overview"
 import { RecentContests } from "@/components/recent-contests"
 import { UpcomingContests } from "@/components/upcoming-contests"
-import { getUserProfile } from "@/lib/user"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Trophy, Target, Code, TrendingUp, Calendar, Award, Zap } from "lucide-react"
+import { Trophy, Target, Code, TrendingUp, Calendar, Award, Zap, LogOut } from "lucide-react"
 import { motion } from "framer-motion"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { userOperations } from "@/lib/supabase"
 
 export default function UserDashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
+  const router = useRouter()
+  const [userStats, setUserStats] = useState({
+    problemsSolved: 42,
+    recentlySolved: 5,
+    globalRank: 128,
+    rankChange: 15,
+    contestsWon: 2,
+    totalContests: 8,
+    rating: 1850,
+    ratingChange: 75,
+  })
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        // In a real app, this would fetch the user's profile from the API
-        const userData = await getUserProfile()
-        setUser(userData)
-      } catch (error) {
-        console.error("Failed to fetch user data:", error)
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && !user) {
+      router.push("/login")
     }
+  }, [user, loading, router])
 
-    fetchUserData()
-  }, [])
+  const handleLogout = async () => {
+    await signOut()
+    router.push("/login")
+  }
 
   if (loading) {
     return (
@@ -43,6 +50,10 @@ export default function UserDashboard() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
@@ -53,6 +64,10 @@ export default function UserDashboard() {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <UserNav user={user} />
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </div>
       </header>
@@ -102,9 +117,9 @@ export default function UserDashboard() {
                     <Code className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-primary">{user.problemsSolved}</div>
+                    <div className="text-2xl font-bold text-primary">{userStats.problemsSolved}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">+{user.recentlySolved}</span> this month
+                      <span className="text-green-600">+{userStats.recentlySolved}</span> this month
                     </p>
                     <Progress value={75} className="mt-2" />
                   </CardContent>
@@ -122,9 +137,9 @@ export default function UserDashboard() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">#{user.globalRank}</div>
+                    <div className="text-2xl font-bold text-blue-600">#{userStats.globalRank}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">+{user.rankChange}</span> from last week
+                      <span className="text-green-600">+{userStats.rankChange}</span> from last week
                     </p>
                     <Badge variant="secondary" className="mt-2">Top 15%</Badge>
                   </CardContent>
@@ -142,8 +157,8 @@ export default function UserDashboard() {
                     <Trophy className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-yellow-600">{user.contestsWon}</div>
-                    <p className="text-xs text-muted-foreground">{user.totalContests} total participated</p>
+                    <div className="text-2xl font-bold text-yellow-600">{userStats.contestsWon}</div>
+                    <p className="text-xs text-muted-foreground">{userStats.totalContests} total participated</p>
                     <div className="flex gap-1 mt-2">
                       <Award className="h-3 w-3 text-yellow-500" />
                       <Award className="h-3 w-3 text-gray-400" />
@@ -164,9 +179,9 @@ export default function UserDashboard() {
                     <Zap className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-purple-600">{user.rating}</div>
+                    <div className="text-2xl font-bold text-purple-600">{userStats.rating}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">+{user.ratingChange}</span> from last contest
+                      <span className="text-green-600">+{userStats.ratingChange}</span> from last contest
                     </p>
                     <Badge variant="outline" className="mt-2">Expert</Badge>
                   </CardContent>

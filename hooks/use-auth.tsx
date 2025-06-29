@@ -1,18 +1,11 @@
 "use client"
 
 import { useState, useEffect, createContext, useContext } from 'react'
-import { getCurrentUser } from '@/lib/auth'
-
-interface User {
-  id: string
-  email: string
-  name: string
-  role: 'user' | 'admin'
-  image?: string
-}
+import { getCurrentUser, onAuthStateChange, logoutUser } from '@/lib/auth'
+import type { AuthUser } from '@/lib/auth'
 
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   loading: boolean
   signOut: () => Promise<void>
 }
@@ -24,10 +17,11 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Load initial user
     const loadUser = async () => {
       try {
         const currentUser = await getCurrentUser()
@@ -40,13 +34,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     loadUser()
+
+    // Listen for auth state changes
+    const { data: { subscription } } = onAuthStateChange((user) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [])
 
   const signOut = async () => {
     try {
       setLoading(true)
-      // Import logoutUser dynamically to avoid circular dependencies
-      const { logoutUser } = await import('@/lib/auth')
       await logoutUser()
       setUser(null)
     } catch (error) {
