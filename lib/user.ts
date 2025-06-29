@@ -1,28 +1,40 @@
 import { userOperations } from './supabase'
+import { getCurrentUser } from './auth'
 import type { User } from './supabase'
 
-// Example functions for user table operations
+// Get user profile from authenticated user
 export async function getUserProfile() {
   try {
-    // Get all users (for demo purposes)
-    const users = await userOperations.getAllUsers()
-    console.log('All users:', users)
+    // Get the current authenticated user
+    const currentUser = await getCurrentUser()
     
-    // Return mock user data for dashboard
+    if (!currentUser) {
+      throw new Error('No authenticated user found')
+    }
+
+    // Get user record from database
+    const userRecord = await userOperations.getUserByUserId(currentUser.id)
+    
+    if (!userRecord) {
+      throw new Error('User record not found in database')
+    }
+
+    // Return real user data with additional computed fields for dashboard
     return {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      role: "user",
-      image: "",
-      problemsSolved: 42,
-      recentlySolved: 5,
-      globalRank: 128,
-      rankChange: 15,
-      contestsWon: 2,
-      totalContests: 8,
-      rating: 1850,
-      ratingChange: 75,
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      role: currentUser.role,
+      image: currentUser.image,
+      // These would come from actual user data/calculations in a real app
+      problemsSolved: 0, // Start with 0 for new users
+      recentlySolved: 0,
+      globalRank: null, // Will be calculated based on actual performance
+      rankChange: 0,
+      contestsWon: 0,
+      totalContests: 0,
+      rating: 1200, // Default starting rating
+      ratingChange: 0,
     }
   } catch (error) {
     console.error('Error in getUserProfile:', error)

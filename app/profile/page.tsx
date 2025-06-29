@@ -8,46 +8,27 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
+import { getCurrentUser } from "@/lib/auth"
 import { getUserProfile } from "@/lib/user"
 import { Code, Trophy, Star, Settings, Calendar } from "lucide-react"
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // In a real app, this would fetch the user's profile from the API
-        const userData = await getUserProfile()
+        // Get current authenticated user
+        const userData = await getCurrentUser()
+        setUser(userData)
 
-        // Add additional profile data for this page
-        const profileData = {
-          ...userData,
-          username: "rahul_dev",
-          bio: "Passionate Coder | Loves Competitive Programming",
-          preferredLanguages: ["Python", "JavaScript", "C++"],
-          themePreference: "dark",
-          contestsParticipated: 12,
-          contestsWon: 5,
-          globalRanking: 45,
-          problemsSolved: {
-            easy: 20,
-            medium: 15,
-            hard: 5,
-            total: 40,
-          },
-          successRate: "85%",
-          fastestSubmissionTime: "1.2 sec",
-          recentActivity: [
-            { type: "contest", name: "Weekly Challenge #5", date: "2025-03-01", result: "Rank #3" },
-            { type: "problem", name: "Find the Largest Number", date: "2025-02-28", result: "Solved" },
-            { type: "contest", name: "Algorithm Sprint #2", date: "2025-02-15", result: "Rank #7" },
-            { type: "problem", name: "Valid Parentheses", date: "2025-02-10", result: "Solved" },
-          ],
+        if (userData) {
+          // Get user profile with stats
+          const profileData = await getUserProfile()
+          setUserProfile(profileData)
         }
-
-        setUser(profileData)
       } catch (error) {
         console.error("Failed to fetch user data:", error)
       } finally {
@@ -60,6 +41,10 @@ export default function ProfilePage() {
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
+
+  if (!user) {
+    return <div className="flex h-screen items-center justify-center">Please log in to view your profile.</div>
   }
 
   return (
@@ -83,15 +68,16 @@ export default function ProfilePage() {
                       <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <h2 className="text-2xl font-bold">{user.name}</h2>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                    <p className="text-sm text-muted-foreground">@{user.email?.split('@')[0]}</p>
 
                     <div className="mt-2">
                       <Badge variant="outline" className="mr-1">
-                        <Trophy className="mr-1 h-3 w-3" /> Rank #{user.globalRanking}
+                        <Trophy className="mr-1 h-3 w-3" /> 
+                        {userProfile?.globalRank ? `Rank #${userProfile.globalRank}` : 'Unranked'}
                       </Badge>
                     </div>
 
-                    <p className="mt-4 text-sm">{user.bio}</p>
+                    <p className="mt-4 text-sm">Passionate about coding and competitive programming</p>
 
                     <div className="w-full mt-6 space-y-2">
                       <div className="flex justify-between text-sm">
@@ -100,22 +86,20 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Joined:</span>
-                        <span>January 2025</span>
+                        <span>Recently</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Theme:</span>
-                        <span className="capitalize">{user.themePreference}</span>
+                        <span className="text-muted-foreground">Role:</span>
+                        <span className="capitalize">{user.role}</span>
                       </div>
                     </div>
 
                     <div className="w-full mt-6">
                       <h3 className="text-sm font-medium mb-2 text-left">Preferred Languages</h3>
                       <div className="flex flex-wrap gap-2">
-                        {user.preferredLanguages.map((lang: string) => (
-                          <Badge key={lang} variant="secondary">
-                            {lang}
-                          </Badge>
-                        ))}
+                        <Badge variant="secondary">JavaScript</Badge>
+                        <Badge variant="secondary">Python</Badge>
+                        <Badge variant="secondary">C++</Badge>
                       </div>
                     </div>
 
@@ -146,10 +130,9 @@ export default function ProfilePage() {
                         <Code className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">{user.problemsSolved.total}</div>
+                        <div className="text-2xl font-bold">{userProfile?.problemsSolved || 0}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Easy: {user.problemsSolved.easy} • Medium: {user.problemsSolved.medium} • Hard:{" "}
-                          {user.problemsSolved.hard}
+                          Easy: 0 • Medium: 0 • Hard: 0
                         </div>
                       </CardContent>
                     </Card>
@@ -160,9 +143,9 @@ export default function ProfilePage() {
                         <Star className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">{user.successRate}</div>
+                        <div className="text-2xl font-bold">--</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Fastest submission: {user.fastestSubmissionTime}
+                          Start solving problems to see your rate
                         </p>
                       </CardContent>
                     </Card>
@@ -174,7 +157,7 @@ export default function ProfilePage() {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {user.contestsWon} / {user.contestsParticipated}
+                          {userProfile?.contestsWon || 0} / {userProfile?.totalContests || 0}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">Contests won / participated</p>
                       </CardContent>
@@ -187,34 +170,11 @@ export default function ProfilePage() {
                       <CardDescription>Your recent contests and problem-solving activity</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {user.recentActivity.map((activity: any, index: number) => (
-                          <div key={index} className="flex items-start">
-                            <div className="mr-4">
-                              {activity.type === "contest" ? (
-                                <div className="bg-primary/10 p-2 rounded-full">
-                                  <Trophy className="h-5 w-5 text-primary" />
-                                </div>
-                              ) : (
-                                <div className="bg-secondary/10 p-2 rounded-full">
-                                  <Code className="h-5 w-5 text-secondary-foreground" />
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex items-center">
-                                <h4 className="font-medium">{activity.name}</h4>
-                                <Badge variant="outline" className="ml-2">
-                                  {activity.result}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center mt-1 text-sm text-muted-foreground">
-                                <Calendar className="mr-1 h-3 w-3" />
-                                {activity.date}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No recent activity</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Start participating in contests or solving problems to see your activity here
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -227,53 +187,12 @@ export default function ProfilePage() {
                       <CardDescription>Your performance in past contests</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="rounded-md border">
-                        <div className="relative w-full overflow-auto">
-                          <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b">
-                              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                                  Contest
-                                </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                                  Date
-                                </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                                  Rank
-                                </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                                  Score
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="[&_tr:last-child]:border-0">
-                              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                <td className="p-4 align-middle font-medium">Weekly Challenge #5</td>
-                                <td className="p-4 align-middle">Mar 1, 2025</td>
-                                <td className="p-4 align-middle">3 / 120</td>
-                                <td className="p-4 align-middle">450</td>
-                              </tr>
-                              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                <td className="p-4 align-middle font-medium">Algorithm Sprint #2</td>
-                                <td className="p-4 align-middle">Feb 15, 2025</td>
-                                <td className="p-4 align-middle">7 / 85</td>
-                                <td className="p-4 align-middle">380</td>
-                              </tr>
-                              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                <td className="p-4 align-middle font-medium">Weekly Challenge #4</td>
-                                <td className="p-4 align-middle">Feb 7, 2025</td>
-                                <td className="p-4 align-middle">12 / 110</td>
-                                <td className="p-4 align-middle">320</td>
-                              </tr>
-                              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                <td className="p-4 align-middle font-medium">Code Masters Cup</td>
-                                <td className="p-4 align-middle">Jan 25, 2025</td>
-                                <td className="p-4 align-middle">Semi-Finalist</td>
-                                <td className="p-4 align-middle">420</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                      <div className="text-center py-8">
+                        <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No contest history yet</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Participate in contests to see your performance history
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -290,58 +209,41 @@ export default function ProfilePage() {
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-sm font-medium">Easy Problems</h4>
-                            <span className="text-sm text-muted-foreground">{user.problemsSolved.easy} solved</span>
+                            <span className="text-sm text-muted-foreground">0 solved</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full" style={{ width: "80%" }}></div>
+                            <div className="h-full bg-green-500 rounded-full" style={{ width: "0%" }}></div>
                           </div>
                         </div>
 
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-sm font-medium">Medium Problems</h4>
-                            <span className="text-sm text-muted-foreground">{user.problemsSolved.medium} solved</span>
+                            <span className="text-sm text-muted-foreground">0 solved</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: "60%" }}></div>
+                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: "0%" }}></div>
                           </div>
                         </div>
 
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-sm font-medium">Hard Problems</h4>
-                            <span className="text-sm text-muted-foreground">{user.problemsSolved.hard} solved</span>
+                            <span className="text-sm text-muted-foreground">0 solved</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500 rounded-full" style={{ width: "30%" }}></div>
+                            <div className="h-full bg-red-500 rounded-full" style={{ width: "0%" }}></div>
                           </div>
                         </div>
                       </div>
 
                       <div className="mt-8">
                         <h3 className="text-sm font-medium mb-4">Recently Solved Problems</h3>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                            <div>
-                              <p className="font-medium">Find the Largest Number</p>
-                              <p className="text-xs text-muted-foreground">Easy • Feb 28, 2025</p>
-                            </div>
-                            <Badge variant="outline">1.2 sec</Badge>
-                          </div>
-                          <div className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                            <div>
-                              <p className="font-medium">Valid Parentheses</p>
-                              <p className="text-xs text-muted-foreground">Medium • Feb 10, 2025</p>
-                            </div>
-                            <Badge variant="outline">2.5 sec</Badge>
-                          </div>
-                          <div className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                            <div>
-                              <p className="font-medium">Merge Two Sorted Lists</p>
-                              <p className="text-xs text-muted-foreground">Medium • Jan 30, 2025</p>
-                            </div>
-                            <Badge variant="outline">3.1 sec</Badge>
-                          </div>
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">No problems solved yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Start solving problems to see your progress
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -361,39 +263,12 @@ export default function ProfilePage() {
 
                       <div className="mt-8">
                         <h3 className="text-sm font-medium mb-4">Activity Feed</h3>
-                        <div className="space-y-4">
-                          {user.recentActivity.map((activity: any, index: number) => (
-                            <div key={index} className="flex items-start border-b pb-4 last:border-0">
-                              <div className="mr-4">
-                                {activity.type === "contest" ? (
-                                  <div className="bg-primary/10 p-2 rounded-full">
-                                    <Trophy className="h-5 w-5 text-primary" />
-                                  </div>
-                                ) : (
-                                  <div className="bg-secondary/10 p-2 rounded-full">
-                                    <Code className="h-5 w-5 text-secondary-foreground" />
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <div className="flex items-center">
-                                  <h4 className="font-medium">{activity.name}</h4>
-                                  <Badge variant="outline" className="ml-2">
-                                    {activity.result}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center mt-1 text-sm text-muted-foreground">
-                                  <Calendar className="mr-1 h-3 w-3" />
-                                  {activity.date}
-                                </div>
-                                <p className="mt-2 text-sm">
-                                  {activity.type === "contest"
-                                    ? `You participated in ${activity.name} and achieved ${activity.result}.`
-                                    : `You solved the ${activity.name} problem successfully.`}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="text-center py-8">
+                          <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No activity yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Your coding activity will appear here as you participate in contests and solve problems
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -407,4 +282,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-

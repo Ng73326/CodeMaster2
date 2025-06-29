@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, updateUserProfile } from "@/lib/auth"
 import { User, Lock, Bell, Palette, Code, Trophy, Database, Save, Loader2 } from "lucide-react"
 
 export default function SettingsPage() {
@@ -45,17 +45,17 @@ export default function SettingsPage() {
         const userData = await getCurrentUser()
         setUser(userData)
 
-        // Set initial form values
+        // Set initial form values from real user data
         if (userData) {
           setProfileForm({
             name: userData.name || "",
-            username: "rahul_dev", // Mock data
+            username: userData.email?.split('@')[0] || "", // Generate username from email
             email: userData.email || "",
-            bio: "Passionate Coder | Loves Competitive Programming", // Mock data
+            bio: "", // This could be stored in user metadata or separate table
           })
 
-          // Mock settings data
-          setThemePreference("dark")
+          // Set theme preference from user metadata or default
+          setThemePreference(userData.user_metadata?.theme || "light")
         }
       } catch (error) {
         console.error("Failed to fetch user data:", error)
@@ -84,11 +84,20 @@ export default function SettingsPage() {
     setSaving(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Update user profile with real data
+      if (user && profileForm.name !== user.name) {
+        await updateUserProfile({
+          name: profileForm.name
+        })
+        
+        // Update local user state
+        setUser((prev: any) => ({
+          ...prev,
+          name: profileForm.name
+        }))
+      }
 
-      // In a real app, you would save the settings to your backend
-      console.log("Profile settings:", profileForm)
+      // In a real app, you would also save other settings to user preferences
       console.log("Theme preference:", themePreference)
       console.log("Notification settings:", notificationSettings)
       console.log("Editor settings:", editorSettings)
@@ -175,7 +184,9 @@ export default function SettingsPage() {
                       type="email"
                       value={profileForm.email}
                       onChange={handleProfileChange}
+                      disabled
                     />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed here. Contact support if needed.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
@@ -191,9 +202,9 @@ export default function SettingsPage() {
                     <Label htmlFor="avatar">Profile Picture</Label>
                     <div className="flex items-center gap-4">
                       <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                        {user.image ? (
+                        {user?.image ? (
                           <img
-                            src={user.image || "/placeholder.svg"}
+                            src={user.image}
                             alt={user.name}
                             className="h-full w-full rounded-full object-cover"
                           />
@@ -263,30 +274,18 @@ export default function SettingsPage() {
                       <div className="p-4 border-b">
                         <div className="flex justify-between">
                           <div>
-                            <p className="font-medium">Chrome on Windows</p>
-                            <p className="text-sm text-muted-foreground">New Delhi, India</p>
+                            <p className="font-medium">Current Session</p>
+                            <p className="text-sm text-muted-foreground">This device</p>
                           </div>
                           <Badge>Current</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">Last active: Just now</p>
                       </div>
-                      <div className="p-4">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">Safari on iPhone</p>
-                            <p className="text-sm text-muted-foreground">Mumbai, India</p>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            Logout
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">Last active: 2 days ago</p>
-                      </div>
                     </div>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full">Logout from All Devices</Button>
+                  <Button className="w-full">Update Password</Button>
                 </CardFooter>
               </Card>
             </TabsContent>
@@ -632,4 +631,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

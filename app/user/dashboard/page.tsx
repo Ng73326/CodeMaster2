@@ -17,21 +17,22 @@ import { Trophy, Target, Code, TrendingUp, Calendar, Award, Zap, LogOut } from "
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { userOperations } from "@/lib/supabase"
+import { getUserProfile } from "@/lib/user"
 
 export default function UserDashboard() {
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [userStats, setUserStats] = useState({
-    problemsSolved: 42,
-    recentlySolved: 5,
-    globalRank: 128,
-    rankChange: 15,
-    contestsWon: 2,
-    totalContests: 8,
-    rating: 1850,
-    ratingChange: 75,
+    problemsSolved: 0,
+    recentlySolved: 0,
+    globalRank: null as number | null,
+    rankChange: 0,
+    contestsWon: 0,
+    totalContests: 0,
+    rating: 1200,
+    ratingChange: 0,
   })
+  const [statsLoading, setStatsLoading] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -39,12 +40,39 @@ export default function UserDashboard() {
     }
   }, [user, loading, router])
 
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      if (user) {
+        try {
+          const profile = await getUserProfile()
+          setUserStats({
+            problemsSolved: profile.problemsSolved,
+            recentlySolved: profile.recentlySolved,
+            globalRank: profile.globalRank,
+            rankChange: profile.rankChange,
+            contestsWon: profile.contestsWon,
+            totalContests: profile.totalContests,
+            rating: profile.rating,
+            ratingChange: profile.ratingChange,
+          })
+        } catch (error) {
+          console.error('Error fetching user stats:', error)
+          // Keep default values if there's an error
+        } finally {
+          setStatsLoading(false)
+        }
+      }
+    }
+
+    fetchUserStats()
+  }, [user])
+
   const handleLogout = async () => {
     await signOut()
     router.push("/login")
   }
 
-  if (loading) {
+  if (loading || statsLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -121,7 +149,7 @@ export default function UserDashboard() {
                     <p className="text-xs text-muted-foreground">
                       <span className="text-green-600">+{userStats.recentlySolved}</span> this month
                     </p>
-                    <Progress value={75} className="mt-2" />
+                    <Progress value={userStats.problemsSolved > 0 ? (userStats.problemsSolved / 100) * 100 : 0} className="mt-2" />
                   </CardContent>
                 </Card>
               </motion.div>
@@ -137,11 +165,16 @@ export default function UserDashboard() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">#{userStats.globalRank}</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {userStats.globalRank ? `#${userStats.globalRank}` : 'Unranked'}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">+{userStats.rankChange}</span> from last week
+                      {userStats.rankChange > 0 && <span className="text-green-600">+{userStats.rankChange}</span>}
+                      {userStats.rankChange < 0 && <span className="text-red-600">{userStats.rankChange}</span>}
+                      {userStats.rankChange === 0 && <span>No change</span>}
+                      {userStats.globalRank && ' from last week'}
                     </p>
-                    <Badge variant="secondary" className="mt-2">Top 15%</Badge>
+                    {userStats.globalRank && <Badge variant="secondary" className="mt-2">Active</Badge>}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -160,9 +193,9 @@ export default function UserDashboard() {
                     <div className="text-2xl font-bold text-yellow-600">{userStats.contestsWon}</div>
                     <p className="text-xs text-muted-foreground">{userStats.totalContests} total participated</p>
                     <div className="flex gap-1 mt-2">
-                      <Award className="h-3 w-3 text-yellow-500" />
-                      <Award className="h-3 w-3 text-gray-400" />
-                      <Award className="h-3 w-3 text-orange-500" />
+                      {userStats.contestsWon > 0 && <Award className="h-3 w-3 text-yellow-500" />}
+                      {userStats.contestsWon > 1 && <Award className="h-3 w-3 text-gray-400" />}
+                      {userStats.contestsWon > 2 && <Award className="h-3 w-3 text-orange-500" />}
                     </div>
                   </CardContent>
                 </Card>
@@ -181,9 +214,14 @@ export default function UserDashboard() {
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-600">{userStats.rating}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">+{userStats.ratingChange}</span> from last contest
+                      {userStats.ratingChange > 0 && <span className="text-green-600">+{userStats.ratingChange}</span>}
+                      {userStats.ratingChange < 0 && <span className="text-red-600">{userStats.ratingChange}</span>}
+                      {userStats.ratingChange === 0 && <span>No change</span>}
+                      {userStats.totalContests > 0 && ' from last contest'}
                     </p>
-                    <Badge variant="outline" className="mt-2">Expert</Badge>
+                    <Badge variant="outline" className="mt-2">
+                      {userStats.rating >= 1800 ? 'Expert' : userStats.rating >= 1400 ? 'Intermediate' : 'Beginner'}
+                    </Badge>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -283,19 +321,19 @@ export default function UserDashboard() {
                     <Link href="/practice?difficulty=easy">
                       <Button variant="outline" className="w-full h-16 flex flex-col gap-1 hover:bg-green-50 hover:border-green-200 dark:hover:bg-green-950">
                         <span className="font-semibold">Easy</span>
-                        <span className="text-xs text-muted-foreground">20 solved</span>
+                        <span className="text-xs text-muted-foreground">Start here</span>
                       </Button>
                     </Link>
                     <Link href="/practice?difficulty=medium">
                       <Button variant="outline" className="w-full h-16 flex flex-col gap-1 hover:bg-yellow-50 hover:border-yellow-200 dark:hover:bg-yellow-950">
                         <span className="font-semibold">Medium</span>
-                        <span className="text-xs text-muted-foreground">15 solved</span>
+                        <span className="text-xs text-muted-foreground">Challenge yourself</span>
                       </Button>
                     </Link>
                     <Link href="/practice?difficulty=hard">
                       <Button variant="outline" className="w-full h-16 flex flex-col gap-1 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950">
                         <span className="font-semibold">Hard</span>
-                        <span className="text-xs text-muted-foreground">5 solved</span>
+                        <span className="text-xs text-muted-foreground">Expert level</span>
                       </Button>
                     </Link>
                   </div>
