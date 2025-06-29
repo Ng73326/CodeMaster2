@@ -70,6 +70,10 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
     })
 
     if (error) {
+      // Handle specific email confirmation error
+      if (error.message === 'Email not confirmed' || error.message.includes('email_not_confirmed')) {
+        throw new Error('Please verify your email before logging in. Check your inbox for the verification link.')
+      }
       throw error
     }
 

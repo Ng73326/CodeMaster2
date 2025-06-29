@@ -30,6 +30,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [resendingVerification, setResendingVerification] = useState(false)
   const [verificationResent, setVerificationResent] = useState(false)
+  const [emailNeedsVerification, setEmailNeedsVerification] = useState(false)
 
   useEffect(() => {
     if (registered === "true") {
@@ -40,18 +41,33 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    // Clear verification states when user starts typing
+    if (name === "email") {
+      setEmailNeedsVerification(false)
+      setVerificationResent(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setEmailNeedsVerification(false)
 
     try {
       const user = await loginUser(formData)
       router.push("/user/dashboard")
     } catch (err: any) {
-      setError(err.message || "Invalid email or password")
+      const errorMessage = err.message || "Invalid email or password"
+      
+      // Check if the error is related to email confirmation
+      if (errorMessage.includes("verify your email") || errorMessage.includes("Email not confirmed") || err.message?.includes("email_not_confirmed")) {
+        setEmailNeedsVerification(true)
+        setError("")
+      } else {
+        setError(errorMessage)
+        setEmailNeedsVerification(false)
+      }
     } finally {
       setLoading(false)
     }
@@ -67,6 +83,7 @@ export default function LoginPage() {
     try {
       await resendVerificationEmail(formData.email)
       setVerificationResent(true)
+      setEmailNeedsVerification(false)
       setError("")
     } catch (err: any) {
       setError(err.message || "Failed to resend verification email")
@@ -109,6 +126,36 @@ export default function LoginPage() {
             >
               <Alert className="mx-6 mb-4 bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200">
                 <AlertDescription>Account created successfully! Please check your email to verify your account before signing in.</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+          {emailNeedsVerification && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Alert className="mx-6 mb-4 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200">
+                <AlertDescription className="space-y-2">
+                  <p>Please verify your email address before signing in. Check your inbox for the verification link.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResendVerification}
+                    disabled={resendingVerification}
+                    className="w-full mt-2 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 dark:text-amber-200 dark:border-amber-700"
+                  >
+                    {resendingVerification ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Resend Verification Email"
+                    )}
+                  </Button>
+                </AlertDescription>
               </Alert>
             </motion.div>
           )}
@@ -171,25 +218,6 @@ export default function LoginPage() {
               {error && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-destructive">{error}</p>
-                  {error.includes("verify your email") && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleResendVerification}
-                      disabled={resendingVerification}
-                      className="w-full"
-                    >
-                      {resendingVerification ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        "Resend Verification Email"
-                      )}
-                    </Button>
-                  )}
                 </div>
               )}
             </CardContent>
