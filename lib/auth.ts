@@ -25,32 +25,32 @@ export interface LoginData {
 // Clear any cached user data on app start
 export async function clearCachedUserData(): Promise<void> {
   try {
-    // Clear localStorage
+    // Clear localStorage and sessionStorage
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('supabase.auth.token')
-      localStorage.removeItem('sb-fjfnkdpmkziirmldnhxj-auth-token')
-      localStorage.removeItem('user-profile')
-      localStorage.removeItem('user-data')
-      localStorage.removeItem('john-doe-data')
+      const keysToRemove = [
+        'supabase.auth.token',
+        'sb-fjfnkdpmkziirmldnhxj-auth-token',
+        'user-profile',
+        'user-data',
+        'john-doe-data'
+      ]
       
-      // Clear sessionStorage
-      sessionStorage.removeItem('supabase.auth.token')
-      sessionStorage.removeItem('sb-fjfnkdpmkziirmldnhxj-auth-token')
-      sessionStorage.removeItem('user-profile')
-      sessionStorage.removeItem('user-data')
-      sessionStorage.removeItem('john-doe-data')
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      })
       
-      // Clear any cookies related to auth
+      // Clear auth-related cookies
       document.cookie.split(";").forEach((c) => {
         const eqPos = c.indexOf("=")
         const name = eqPos > -1 ? c.substr(0, eqPos) : c
-        if (name.trim().includes('auth') || name.trim().includes('supabase') || name.trim().includes('john')) {
+        if (name.trim().includes('auth') || name.trim().includes('supabase')) {
           document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
         }
       })
     }
     
-    // Sign out from Supabase to clear any session
+    // Sign out from Supabase
     await supabase.auth.signOut()
   } catch (error) {
     console.error('Error clearing cached user data:', error)
@@ -60,7 +60,6 @@ export async function clearCachedUserData(): Promise<void> {
 // Sign up with email verification
 export async function createUserAccount(data: SignupData): Promise<{ user: User | null; needsVerification: boolean }> {
   try {
-    // Clear any existing data first
     await clearCachedUserData()
     
     const { data: authData, error } = await supabase.auth.signUp({
@@ -75,26 +74,32 @@ export async function createUserAccount(data: SignupData): Promise<{ user: User 
     })
 
     if (error) {
+      console.error('Signup error:', error)
       throw error
     }
 
-    // If user is created but not confirmed, they need to verify email
+    // Check if user needs email verification
     if (authData.user && !authData.user.email_confirmed_at) {
       return { user: authData.user, needsVerification: true }
     }
 
-    // If user is immediately confirmed (rare), create user record
+    // If user is immediately confirmed, create user record
     if (authData.user && authData.user.email_confirmed_at) {
-      await userOperations.insertUser({
-        name: data.name,
-        email: data.email,
-        userId: authData.user.id
-      })
+      try {
+        await userOperations.insertUser({
+          name: data.name,
+          email: data.email,
+          userId: authData.user.id
+        })
+      } catch (dbError) {
+        console.error('Error creating user record:', dbError)
+        // Continue anyway, user can be created later
+      }
     }
 
     return { user: authData.user, needsVerification: false }
   } catch (error) {
-    console.error('Signup error:', error)
+    console.error('createUserAccount error:', error)
     throw error
   }
 }
@@ -102,7 +107,6 @@ export async function createUserAccount(data: SignupData): Promise<{ user: User 
 // Login with email verification check
 export async function loginUser(data: LoginData): Promise<AuthUser> {
   try {
-    // Clear any existing data first
     await clearCachedUserData()
     
     const { data: authData, error } = await supabase.auth.signInWithPassword({
@@ -111,6 +115,8 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
     })
 
     if (error) {
+      console.error('Login error:', error)
+      
       // Handle specific email confirmation error
       if (error.message === 'Email not confirmed' || error.message.includes('email_not_confirmed')) {
         throw new Error('Please verify your email before logging in. Check your inbox for the verification link.')
@@ -119,7 +125,7 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
     }
 
     if (!authData.user) {
-      throw new Error('Login failed')
+      throw new Error('Login failed - no user returned')
     }
 
     // Check if email is verified
@@ -131,12 +137,23 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
     let userRecord = await userOperations.getUserByUserId(authData.user.id)
     
     if (!userRecord) {
-      // Create user record if it doesn't exist
-      userRecord = await userOperations.insertUser({
-        name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || 'User',
-        email: authData.user.email!,
-        userId: authData.user.id
-      })
+      try {
+        // Create user record if it doesn't exist
+        userRecord = await userOperations.insertUser({
+          name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || 'User',
+          email: authData.user.email!,
+          userId: authData.user.id
+        })
+      } catch (dbError) {
+        console.error('Error creating user record during login:', dbError)
+        // Use fallback user data
+        userRecord = {
+          id: 'temp',
+          name: authData.user.user_metadata?.name || 'User',
+          email: authData.user.email!,
+          userId: authData.user.id
+        }
+      }
     }
 
     return {
@@ -148,7 +165,7 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
       email_confirmed_at: authData.user.email_confirmed_at
     }
   } catch (error) {
-    console.error('Login error:', error)
+    console.error('loginUser error:', error)
     throw error
   }
 }
@@ -156,7 +173,6 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
 // Google OAuth login
 export async function loginWithGoogle(): Promise<{ url?: string; error?: string }> {
   try {
-    // Clear any existing data first
     await clearCachedUserData()
     
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -172,17 +188,17 @@ export async function loginWithGoogle(): Promise<{ url?: string; error?: string 
 
     if (error) {
       console.error('Google OAuth error:', error)
-      throw error
+      return { error: error.message }
     }
 
     return { url: data.url }
   } catch (error) {
-    console.error('Google login error:', error)
+    console.error('loginWithGoogle error:', error)
     return { error: error instanceof Error ? error.message : 'Failed to login with Google' }
   }
 }
 
-// Handle OAuth callback and create user record
+// Handle OAuth callback
 export async function handleOAuthCallback(): Promise<AuthUser | null> {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -192,17 +208,26 @@ export async function handleOAuthCallback(): Promise<AuthUser | null> {
       return null
     }
 
-    // For OAuth users, email is automatically confirmed
-    // Get or create user record in users table
+    // Get or create user record
     let userRecord = await userOperations.getUserByUserId(user.id)
     
     if (!userRecord) {
-      // Create user record for OAuth user
-      userRecord = await userOperations.insertUser({
-        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-        email: user.email!,
-        userId: user.id
-      })
+      try {
+        userRecord = await userOperations.insertUser({
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          email: user.email!,
+          userId: user.id
+        })
+      } catch (dbError) {
+        console.error('Error creating OAuth user record:', dbError)
+        // Use fallback
+        userRecord = {
+          id: 'temp',
+          name: user.user_metadata?.full_name || 'User',
+          email: user.email!,
+          userId: user.id
+        }
+      }
     }
 
     return {
@@ -214,28 +239,28 @@ export async function handleOAuthCallback(): Promise<AuthUser | null> {
       email_confirmed_at: user.email_confirmed_at
     }
   } catch (error) {
-    console.error('OAuth callback error:', error)
+    console.error('handleOAuthCallback error:', error)
     return null
   }
 }
 
-// Logout user and clear all data
+// Logout user
 export async function logoutUser(): Promise<void> {
   try {
-    // Clear cached data first
     await clearCachedUserData()
     
     const { error } = await supabase.auth.signOut()
     if (error) {
+      console.error('Logout error:', error)
       throw error
     }
   } catch (error) {
-    console.error('Logout error:', error)
+    console.error('logoutUser error:', error)
     throw error
   }
 }
 
-// Get current user - ensures no cached John Doe data
+// Get current user
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -244,24 +269,35 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null
     }
 
-    // For OAuth users, email is automatically confirmed
-    // For email/password users, check if email is verified
+    // Check email verification for email/password users
     if (user.app_metadata?.provider === 'email' && !user.email_confirmed_at) {
       return null
     }
 
-    // Get user record from users table
+    // Get user record from database
     const userRecord = await userOperations.getUserByUserId(user.id)
     
     if (!userRecord) {
-      return null
-    }
-
-    // Ensure we never return John Doe data
-    if (userRecord.name === 'John Doe' || userRecord.email === 'john@example.com') {
-      console.warn('Found John Doe data, clearing...')
-      await clearCachedUserData()
-      return null
+      // Try to create user record if missing
+      try {
+        const newUserRecord = await userOperations.insertUser({
+          name: user.user_metadata?.name || user.user_metadata?.full_name || 'User',
+          email: user.email!,
+          userId: user.id
+        })
+        
+        return {
+          id: user.id,
+          email: user.email!,
+          name: newUserRecord.name,
+          role: (user.user_metadata?.role as 'user' | 'admin') || 'user',
+          image: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+          email_confirmed_at: user.email_confirmed_at
+        }
+      } catch (dbError) {
+        console.error('Error creating missing user record:', dbError)
+        return null
+      }
     }
 
     return {
@@ -273,7 +309,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       email_confirmed_at: user.email_confirmed_at
     }
   } catch (error) {
-    console.error('Get current user error:', error)
+    console.error('getCurrentUser error:', error)
     return null
   }
 }
@@ -287,10 +323,11 @@ export async function resendVerificationEmail(email: string): Promise<void> {
     })
     
     if (error) {
+      console.error('Resend verification error:', error)
       throw error
     }
   } catch (error) {
-    console.error('Resend verification error:', error)
+    console.error('resendVerificationEmail error:', error)
     throw error
   }
 }
@@ -311,27 +348,40 @@ export async function updateUserProfile(updates: { name?: string; image?: string
       })
       
       if (updateError) {
-        throw updateError
+        console.error('Error updating auth metadata:', updateError)
+        // Continue anyway
       }
     }
 
     // Update user record in users table
     const userRecord = await userOperations.getUserByUserId(user.id)
     if (userRecord && updates.name) {
-      await userOperations.updateUser(userRecord.id, { name: updates.name })
+      try {
+        await userOperations.updateUser(userRecord.id, { name: updates.name })
+      } catch (dbError) {
+        console.error('Error updating user record:', dbError)
+        // Continue anyway
+      }
     }
 
     // Return updated user
-    return await getCurrentUser() as AuthUser
+    const updatedUser = await getCurrentUser()
+    if (!updatedUser) {
+      throw new Error('Failed to get updated user')
+    }
+    
+    return updatedUser
   } catch (error) {
-    console.error('Update profile error:', error)
+    console.error('updateUserProfile error:', error)
     throw error
   }
 }
 
-// Check auth state changes
+// Auth state change listener
 export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
   return supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state changed:', event, session?.user?.email)
+    
     if (event === 'SIGNED_IN' && session?.user) {
       const user = await getCurrentUser()
       callback(user)

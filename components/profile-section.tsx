@@ -23,34 +23,38 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { logoutUser, updateUserProfile } from "@/lib/auth"
+import { updateUserProfile } from "@/lib/auth"
 import type { AuthUser } from "@/lib/auth"
 import { Loader2 } from "lucide-react"
 
 interface ProfileSectionProps {
   user: AuthUser | null
   loading: boolean
+  onSignOut: () => Promise<void>
 }
 
-export function ProfileSection({ user, loading }: ProfileSectionProps) {
+export function ProfileSection({ user, loading, onSignOut }: ProfileSectionProps) {
   const router = useRouter()
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editForm, setEditForm] = useState({
     name: user?.name || "",
   })
+  const [message, setMessage] = useState("")
 
   const handleLogout = async () => {
     try {
-      await logoutUser()
+      await onSignOut()
       router.push("/login")
     } catch (error) {
       console.error("Logout error:", error)
+      setMessage("Error logging out. Please try again.")
     }
   }
 
   const handleEditProfile = () => {
     setEditForm({ name: user?.name || "" })
+    setMessage("")
     setShowEditDialog(true)
   }
 
@@ -58,13 +62,20 @@ export function ProfileSection({ user, loading }: ProfileSectionProps) {
     if (!user) return
 
     setEditLoading(true)
+    setMessage("")
+    
     try {
       await updateUserProfile({ name: editForm.name })
       setShowEditDialog(false)
+      setMessage("Profile updated successfully!")
+      
       // Refresh the page to show updated data
-      window.location.reload()
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } catch (error) {
       console.error("Update profile error:", error)
+      setMessage("Error updating profile. Please try again.")
     } finally {
       setEditLoading(false)
     }
@@ -160,6 +171,13 @@ export function ProfileSection({ user, loading }: ProfileSectionProps) {
                 className="col-span-3"
               />
             </div>
+            {message && (
+              <div className="col-span-4 text-sm text-center">
+                <p className={message.includes("Error") ? "text-red-600" : "text-green-600"}>
+                  {message}
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>

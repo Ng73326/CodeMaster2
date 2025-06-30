@@ -21,10 +21,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Clear any cached data first
+    // Initialize auth state
     const initializeAuth = async () => {
       try {
+        // Clear any problematic cached data first
         await clearCachedUserData()
+        
+        // Get current user
         const currentUser = await getCurrentUser()
         setUser(currentUser)
       } catch (error) {
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = onAuthStateChange((user) => {
+      console.log('Auth state changed in hook:', user?.email)
       setUser(user)
       setLoading(false)
     })

@@ -1,10 +1,3 @@
-let userConfig = undefined
-try {
-  userConfig = await import('./v0-user-next.config')
-} catch (e) {
-  // ignore error
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -16,33 +9,29 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Disable caching to prevent build issues
   experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
+    webpackBuildWorker: false,
+    parallelServerBuildTraces: false,
+    parallelServerCompiles: false,
   },
-}
-
-mergeConfig(nextConfig, userConfig)
-
-function mergeConfig(nextConfig, userConfig) {
-  if (!userConfig) {
-    return
-  }
-
-  for (const key in userConfig) {
-    if (
-      typeof nextConfig[key] === 'object' &&
-      !Array.isArray(nextConfig[key])
-    ) {
-      nextConfig[key] = {
-        ...nextConfig[key],
-        ...userConfig[key],
-      }
-    } else {
-      nextConfig[key] = userConfig[key]
+  // Fix hydration issues
+  reactStrictMode: false,
+  swcMinify: false,
+  // Webpack configuration
+  webpack: (config, { isServer, dev }) => {
+    // Disable caching in development
+    if (dev) {
+      config.cache = false;
     }
-  }
+    
+    // Handle style-related issues during SSR
+    if (isServer) {
+      config.externals = [...(config.externals || []), 'canvas', 'jsdom'];
+    }
+    
+    return config;
+  },
 }
 
 export default nextConfig

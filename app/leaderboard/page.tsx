@@ -8,12 +8,10 @@ import { MainNav } from "@/components/main-nav"
 import { Badge } from "@/components/ui/badge"
 import { Trophy } from "lucide-react"
 import { ProfileSection } from "@/components/profile-section"
-import { getCurrentUser } from "@/lib/auth"
-import type { AuthUser } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function LeaderboardPage() {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
 
   // Mock user data for demonstration
   const [globalUsers] = useState([
@@ -49,27 +47,12 @@ export default function LeaderboardPage() {
     { id: "1", name: "Rahul Singh", round: "Semi-Finalist", rank: 5 },
   ])
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await getCurrentUser()
-        setUser(userData)
-      } catch (error) {
-        console.error('Error fetching user:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchUser()
-  }, [])
-
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-16 items-center justify-between py-4">
           <MainNav />
-          <ProfileSection user={user} loading={loading} />
+          <ProfileSection user={user} loading={loading} onSignOut={signOut} />
         </div>
       </header>
       <main className="flex-1 space-y-4 p-8 pt-6">
