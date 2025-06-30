@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, createContext, useContext } from 'react'
-import { getCurrentUser, onAuthStateChange, logoutUser } from '@/lib/auth'
+import { getCurrentUser, onAuthStateChange, logoutUser, clearCachedUserData } from '@/lib/auth'
 import type { AuthUser } from '@/lib/auth'
 
 interface AuthContextType {
@@ -21,19 +21,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Load initial user
-    const loadUser = async () => {
+    // Clear any cached data first
+    const initializeAuth = async () => {
       try {
+        await clearCachedUserData()
         const currentUser = await getCurrentUser()
         setUser(currentUser)
       } catch (error) {
-        console.error('Error loading user:', error)
+        console.error('Error initializing auth:', error)
+        setUser(null)
       } finally {
         setLoading(false)
       }
     }
 
-    loadUser()
+    initializeAuth()
 
     // Listen for auth state changes
     const { data: { subscription } } = onAuthStateChange((user) => {

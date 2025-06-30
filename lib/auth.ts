@@ -22,9 +22,47 @@ export interface LoginData {
   password: string
 }
 
+// Clear any cached user data on app start
+export async function clearCachedUserData(): Promise<void> {
+  try {
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem('sb-fjfnkdpmkziirmldnhxj-auth-token')
+      localStorage.removeItem('user-profile')
+      localStorage.removeItem('user-data')
+      localStorage.removeItem('john-doe-data')
+      
+      // Clear sessionStorage
+      sessionStorage.removeItem('supabase.auth.token')
+      sessionStorage.removeItem('sb-fjfnkdpmkziirmldnhxj-auth-token')
+      sessionStorage.removeItem('user-profile')
+      sessionStorage.removeItem('user-data')
+      sessionStorage.removeItem('john-doe-data')
+      
+      // Clear any cookies related to auth
+      document.cookie.split(";").forEach((c) => {
+        const eqPos = c.indexOf("=")
+        const name = eqPos > -1 ? c.substr(0, eqPos) : c
+        if (name.trim().includes('auth') || name.trim().includes('supabase') || name.trim().includes('john')) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+        }
+      })
+    }
+    
+    // Sign out from Supabase to clear any session
+    await supabase.auth.signOut()
+  } catch (error) {
+    console.error('Error clearing cached user data:', error)
+  }
+}
+
 // Sign up with email verification
 export async function createUserAccount(data: SignupData): Promise<{ user: User | null; needsVerification: boolean }> {
   try {
+    // Clear any existing data first
+    await clearCachedUserData()
+    
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -64,6 +102,9 @@ export async function createUserAccount(data: SignupData): Promise<{ user: User 
 // Login with email verification check
 export async function loginUser(data: LoginData): Promise<AuthUser> {
   try {
+    // Clear any existing data first
+    await clearCachedUserData()
+    
     const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password
@@ -115,6 +156,9 @@ export async function loginUser(data: LoginData): Promise<AuthUser> {
 // Google OAuth login
 export async function loginWithGoogle(): Promise<{ url?: string; error?: string }> {
   try {
+    // Clear any existing data first
+    await clearCachedUserData()
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -175,9 +219,12 @@ export async function handleOAuthCallback(): Promise<AuthUser | null> {
   }
 }
 
-// Logout user
+// Logout user and clear all data
 export async function logoutUser(): Promise<void> {
   try {
+    // Clear cached data first
+    await clearCachedUserData()
+    
     const { error } = await supabase.auth.signOut()
     if (error) {
       throw error
@@ -188,7 +235,7 @@ export async function logoutUser(): Promise<void> {
   }
 }
 
-// Get current user
+// Get current user - ensures no cached John Doe data
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -207,6 +254,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     const userRecord = await userOperations.getUserByUserId(user.id)
     
     if (!userRecord) {
+      return null
+    }
+
+    // Ensure we never return John Doe data
+    if (userRecord.name === 'John Doe' || userRecord.email === 'john@example.com') {
+      console.warn('Found John Doe data, clearing...')
+      await clearCachedUserData()
       return null
     }
 
@@ -282,6 +336,7 @@ export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
       const user = await getCurrentUser()
       callback(user)
     } else if (event === 'SIGNED_OUT') {
+      await clearCachedUserData()
       callback(null)
     }
   })
